@@ -1,0 +1,62 @@
+PROFESSOR, ESTOU TENDO PROBLEMAS PARA EXPORTAR O ARQUIVO, DEIXO AQUI UM TXT COM O CÓDIGO PARA UMA POTENCIAL E BEM POSSÍVEL EMERGÊNCIA:
+
+% Estado: estado(MissionariosEsq, CanibaisEsq, LadoBarco, MissionariosDir, CanibaisDir)
+
+inicial(estado(3, 3, esquerda, 0, 0)).% Todos os personagens estão do lado esquerdo do rio
+objetivo(estado(0, 0, direita, 3, 3)).% Todos têm de levados para a margem direita do rio, junto ao barco
+
+% Verifica se um estado é seguro, se Missionários for >= Canibais, ou se Missionários for = 0
+seguro(M, C) :- (M >= C ; M = 0).
+
+% Verifica se o estado é válido e seguro,não há negativo, não passa de três pessoas
+% ME = MissionarioEsq, CD = CanibaisDir.....
+estado_valido(estado(ME, CE, _, MD, CD)) :-
+    ME >= 0, CE >= 0, MD >= 0, CD >= 0, % Verifica se o número de pessoas nas margens é negativo 
+    ME =< 3, CE =< 3, MD =< 3, CD =< 3, % Garantir que o número de pessoas seja no máximo 3
+    seguro(ME, CE), seguro(MD, CD). % Verifica se as margens são seguras, quando há mais missionários ou nenhum canibal
+
+% Movimentos possíveis com barco de capacidade 2
+% Leva apensa missionários, ou apenas canibais ou um de cada
+move(1, 0).  % 1 missionário
+move(2, 0).  % 2 missionários
+move(0, 1).  % 1 canibal
+move(0, 2).  % 2 canibais
+move(1, 1).  % 1 missionário e 1 canibal
+
+% Transição entre estados (margens)
+transicao(estado(ME, CE, esquerda, MD, CD), 
+          estado(NME, NCE, direita, NMD, NCD)) :-
+    move(M, C), % Define quantas pessoas irão escolhendo um dos movimentos válidos, linhas 18 a 22
+    ME >= M, CE >= C, % Verifica se há pessoas o suficiente na esquerda
+    % Cálculo o novo estado após mover M e C
+    NME is ME - M, NCE is CE - C, % Subtrai da marquem esquerda, ME e CE, NCE = Novo canibal esquerda
+    NMD is MD + M, NCD is CD + C, % Soma na margem direita, NMD = Novo missionário direita
+    estado_valido(estado(NME, NCE, direita, NMD, NCD)). % Verifica se o estado resultante é válido
+
+transicao(estado(ME, CE, direita, MD, CD), %O bRaco está na direita
+          estado(NME, NCE, esquerda, NMD, NCD)) :- % O barco volta para a esquerda
+    move(M, C), % Mesma lógica, só que do outro lado do rio
+    MD >= M, CD >= C,
+    NMD is MD - M, NCD is CD - C,
+    NME is ME + M, NCE is CE + C,
+    estado_valido(estado(NME, NCE, esquerda, NMD, NCD)).
+% Essas regras serão chamadas dentro da busca para encontrar o caminho até a solução
+
+% Busca em profundidade
+busca(Estado, _, []) :- objetivo(Estado). % CAso base: se o estado atual é o objetivo, retorna true
+busca(Estado, Visitados, [Movimento|Caminho]) :- % Tenta fazer uma ransição válida (A partir do estado atual)
+    transicao(Estado, Movimento),
+    \+ member(Movimento, Visitados), % Garante que o novo estado ainda não foi visitado
+    busca(Movimento, [Movimento|Visitados], Caminho). % Continua a busca com o novo estado encontrado
+
+% Resolver o problema
+resolver :-
+    inicial(Inicio), % Define o estado incial
+    busca(Inicio, [Inicio], Caminho), % Chama a busca a partir do estado inicial, marcado como visitado
+    imprimir([Inicio|Caminho]).
+
+% Impressão dos passos, imprime quantos missionário e canibais estão em cada margem e onde o barco se encontra, direita ou esquerda
+imprimir([]).
+imprimir([estado(ME, CE, Lado, MD, CD)|T]) :-
+    format('Esq: ~wM ~wC | Dir: ~wM ~wC | Barco: ~w~n', [ME, CE, MD, CD, Lado]),
+    imprimir(T).
